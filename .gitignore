@@ -1,0 +1,7 @@
+# Campaign data never belongs in the repo.
+*.xlsx
+*.csv
+.env
+artist-photos/
+*.jpg
+.DS_Store
