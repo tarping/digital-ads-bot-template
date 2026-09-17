@@ -1,4 +1,4 @@
-# Campaign data never belongs in the repo.
+# Los datos de campaña nunca van en el repo.
 *.xlsx
 *.csv
 .env

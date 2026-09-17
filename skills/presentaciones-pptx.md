@@ -217,19 +217,20 @@ distinto en cada formato y se nota a la primera.
 ```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Render a deck spec to native, editable PPTX.
+"""Convierte un deck spec en un PPTX nativo y editable.
 
-Not a conversion of the HTML: it re-renders from the same spec with
-python-pptx, so every bar, figure and cell is a real PowerPoint object someone
-can edit. No slide images.
+No convierte el HTML: vuelve a dibujar desde el mismo spec con python-pptx, así
+que cada barra, cifra y celda es un objeto real de PowerPoint que se puede
+editar. Sin imágenes de diapositiva.
 
-    python3 render_pptx.py spec.json out.pptx
+    python3 render_pptx.py spec.json salida.pptx
 
-Requires python-pptx only. No browser, no LibreOffice, no network. Runs as-is
-in the Copilot Studio code interpreter (Python 3.12, pptx available).
+Solo necesita python-pptx. Sin navegador, sin LibreOffice, sin red. Funciona tal
+cual en el code interpreter de Copilot Studio (Python 3.12, pptx disponible).
 
-Design system mirrors presentaciones-html.md section 2. When that file changes,
-change TEMAS / TIPO here or the same deck will look different in each format.
+El sistema de diseño replica el apartado 2 de presentaciones-html.md. Si ese
+fichero cambia, cambia TEMAS / TIPO aquí o el mismo deck se verá distinto en cada
+formato.
 """
 import json
 import sys
@@ -243,10 +244,10 @@ from pptx.util import Emu, Pt
 # --------------------------------------------------------------------------
 #  CANVAS
 #
-#  The skill's canvas is 1920x1080 px. A 16:9 PPTX is 13.333 x 7.5 in.
-#  1 px = 6350 EMU exactly, and 1 px = 0.5 pt. So every measurement below is
-#  written in the SAME px as the CSS and converted here. Keep it that way:
-#  the moment you start writing inches, the two renderers drift.
+#  El lienzo del skill es 1920x1080 px. Un PPTX 16:9 mide 13,333 x 7,5 in.
+#  1 px = 6350 EMU exactos, y 1 px = 0,5 pt. Así que todas las medidas de abajo
+#  van en los MISMOS px que el CSS y se convierten aquí. Mantenlo así: en cuanto
+#  empiezas a escribir pulgadas, los dos renderers se desalinean.
 # --------------------------------------------------------------------------
 ANCHO_PX, ALTO_PX = 1920, 1080
 EMU_POR_PX = 6350
@@ -257,7 +258,7 @@ def PX(n):
 
 
 def PT(px):
-    """Type scale: 82px title -> 41pt. Never below 22px (11pt) per section 2."""
+    """Escala tipográfica: título de 82px -> 41pt. Nunca por debajo de 22px (11pt), apartado 2."""
     return Pt(max(px * 0.5, 11))
 
 
@@ -267,7 +268,7 @@ def hex_a_rgb(h):
 
 
 # --------------------------------------------------------------------------
-#  TOKENS  (presentaciones-html.md section 2, verbatim)
+#  TOKENS  (apartado 2 de presentaciones-html.md, literal)
 # --------------------------------------------------------------------------
 TEMAS = {
     'oscuro': {'bg': '#0B0B0D', 'surface': '#131317', 'line': '#24242B',
@@ -283,24 +284,24 @@ PLATAFORMA = {
 
 ESTADO = {'ok': '#22C55E', 'warn': '#EAB308', 'bad': '#F97316', 'crit': '#EF4444'}
 
-# The skill defines four status colours but its legend names three chips:
-# "en linea o mejor / ligeramente peor / revisar". These cutoffs are MINE, not
-# the skill's -- adjust them here if you want a different sensitivity.
-# crit stays reserved for the anomalies archetype.
-UMBRAL_WARN = 0.15   # up to 15% worse than benchmark -> yellow
-UMBRAL_BAD = 0.40    # beyond that -> orange
+# El skill define cuatro colores de estado, pero su leyenda nombra tres chips:
+# "en línea o mejor / ligeramente peor / revisar". Estos umbrales son del
+# renderer, no del skill: ajústalos aquí si quieres otra sensibilidad.
+# crit queda reservado para el arquetipo de anomalías.
+UMBRAL_WARN = 0.15   # hasta un 15% peor que el benchmark -> amarillo
+UMBRAL_BAD = 0.40    # más allá -> naranja
 
 LEYENDA = ('la línea vertical marca el benchmark  ·  '
            'verde en línea o mejor  ·  amarillo ligeramente peor  ·  naranja revisar')
 
-# Section 2 forbids Inter, Roboto, Arial and system fonts. Pick ONE of the
-# allowed display faces and keep it across the deck.
-# NOTE: PowerPoint substitutes any font the viewer does not have installed.
-# If the recipients do not have Archivo, either install it or switch to a
-# family they do have -- from the allowed list, never to Arial.
+# El apartado 2 prohíbe Inter, Roboto, Arial y las fuentes de sistema. Elige UNA
+# de las permitidas y mantenla en todo el deck.
+# OJO: PowerPoint sustituye cualquier fuente que quien abre no tenga instalada.
+# Si los destinatarios no tienen Archivo, instálala o cambia a una familia que
+# sí tengan -- de la lista permitida, nunca Arial.
 FUENTE = 'Archivo'
 
-# Type scale, in CSS px (section 2)
+# Escala tipográfica, en px de CSS (apartado 2)
 TIPO = {'kicker': 26, 'titulo': 82, 'heroe': 120, 'heroe_xl': 200,
         'tabla': 30, 'leyenda': 26, 'cuerpo': 32, 'veredicto': 60}
 
@@ -310,7 +311,7 @@ LOGO_R, LOGO_B = 56, 44
 
 
 # --------------------------------------------------------------------------
-#  NUMBERS  (section 6 -- precision is fixed per metric type)
+#  NÚMEROS  (apartado 6 -- precisión fija por tipo de métrica)
 # --------------------------------------------------------------------------
 def _miles(n):
     return '{:,}'.format(n).replace(',', '.')
@@ -320,16 +321,16 @@ def _dec(v, n):
     return ('%.*f' % (n, v)).replace('.', ',')
 
 
-# Section 6 of the skill says "3 decimals only below €0,01" but gives €0,022 as
-# its own example of the 3-decimal case -- 0,022 is not below 0,01, so the rule
-# and the example disagree. €0,10 satisfies both (€0,21 -> 2, €0,022 -> 3) and
-# is what the data needs: a coste por stream like 0,056 at €0,01
-# would round to €0,06 and throw away the digit that carries the meaning.
+# El apartado 6 del skill dice "3 decimales solo por debajo de €0,01" pero pone
+# €0,022 como ejemplo del caso de 3 decimales -- 0,022 no está por debajo de
+# 0,01, así que regla y ejemplo no cuadran. €0,10 cumple los dos (€0,21 -> 2,
+# €0,022 -> 3) y es lo que pide el dato: un coste por stream de 0,056 con el
+# umbral en €0,01 se redondearía a €0,06 y perdería el dígito que importa.
 UMBRAL_3_DEC = 0.10
 
 
 def formatea(valor, formato):
-    """An absent value is NOT zero. It renders as 'sin dato'."""
+    """Un valor ausente NO es cero. Sale como 'sin dato'."""
     if valor is None or valor == '':
         return 'sin dato'
     try:
@@ -353,13 +354,13 @@ def formatea(valor, formato):
 
 
 def evalua(valor, benchmark, mejor='alto'):
-    """(colour, delta text) against the benchmark.
+    """(color, texto del delta) contra el benchmark.
 
-    A tie is green. Meeting the benchmark is meeting it; painting that red
-    punishes a campaign that did exactly what was asked of it.
+    Empate = verde. Cumplir el benchmark es cumplirlo; pintarlo de rojo castiga
+    a una campaña que hizo justo lo que se le pedía.
 
-    No value or no benchmark means no comparison: dim, no text. A zero is
-    never invented so that something can be compared.
+    Sin valor o sin benchmark no hay comparación: sin color, sin texto. Nunca se
+    inventa un cero para poder comparar algo.
     """
     if valor is None or valor == '' or benchmark in (None, '', 0):
         return None, ''
@@ -382,8 +383,8 @@ def evalua(valor, benchmark, mejor='alto'):
         clave = 'bad'
 
     flecha = '▲' if rel >= 0 else '▼'
-    # RGBColor, not a hex string: this goes straight into font.color.rgb in
-    # the table renderer, which rejects anything else.
+    # RGBColor, no un hex: va directo a font.color.rgb en la tabla, que no
+    # acepta otra cosa.
     return hex_a_rgb(ESTADO[clave]), '%s %s%%' % (flecha, _dec(abs(rel) * 100, 1))
 
 
@@ -431,7 +432,7 @@ class Lienzo(object):
         f.name = FUENTE
         f.color.rgb = color if isinstance(color, RGBColor) else self.color(color)
         if espaciado:
-            # letter-spacing: .28em on the kicker
+            # letter-spacing: .28em en el kicker
             from pptx.oxml.ns import qn
             f._rPr.set(qn('w:spacing'), str(int(espaciado)))
         return caja
@@ -450,12 +451,12 @@ def fondo(slide, tema):
 
 
 def logo(lienzo, meta, grande=False):
-    """Bottom-right corner is the logo's. Section 1 of the skill.
+    """La esquina inferior derecha es del logo. Apartado 1 del skill.
 
-    python-pptx cannot fetch a URL, and the code interpreter has no network,
-    so the spec must carry a local path. If there is none the slide is still
-    valid -- no placeholder, no empty frame (the 'degradacion obligatoria'
-    rule in the artist-photo section applies here too).
+    python-pptx no descarga URLs y el code interpreter no tiene red, así que el
+    spec tiene que llevar una ruta local. Si no la hay, la slide sigue siendo
+    válida -- sin placeholder ni marco vacío (la regla de degradación
+    obligatoria de la foto de artista también vale aquí).
     """
     ruta = meta.get('logo_path')
     if not ruta:
@@ -469,7 +470,7 @@ def logo(lienzo, meta, grande=False):
 
 
 def cabecera(lienzo, spec, meta):
-    """Kicker + 82px title + accent bar. Everything left-aligned (section 8)."""
+    """Kicker + título de 82px + barra de acento. Todo alineado a la izquierda (apartado 8)."""
     y = MARGEN
     if spec.get('kicker'):
         lienzo.kicker(MARGEN, y, 1400, spec['kicker'])
@@ -487,7 +488,7 @@ def leyenda(lienzo, texto_=LEYENDA):
 
 
 # --------------------------------------------------------------------------
-#  ARCHETYPES  (section 3)
+#  ARQUETIPOS  (apartado 3)
 # --------------------------------------------------------------------------
 def a_portada(prs, spec, meta, tema):
     s = prs.slides.add_slide(prs.slide_layouts[6])
@@ -497,8 +498,8 @@ def a_portada(prs, spec, meta, tema):
     foto = meta.get('foto_artista')
     ancho_texto = ANCHO_PX - MARGEN * 2
     if foto:
-        # Right third, full bleed. If it fails to load the cover is still a
-        # valid cover -- never a reserved empty frame.
+        # Tercio derecho, a sangre. Si no carga, la portada sigue siendo
+        # válida -- nunca un marco vacío reservado.
         fw = int(ANCHO_PX * 0.36)
         try:
             s.shapes.add_picture(foto, PX(ANCHO_PX - fw), 0, PX(fw), PX(ALTO_PX))
@@ -519,7 +520,7 @@ def a_portada(prs, spec, meta, tema):
 
 
 def a_veredicto(prs, spec, meta, tema):
-    """Only the verdict sentence. Its force is in the emptiness."""
+    """Solo la frase de veredicto. Su fuerza está en el vacío."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -532,7 +533,7 @@ def a_veredicto(prs, spec, meta, tema):
 
 
 def a_inversion(prs, spec, meta, tema):
-    """Horizontal bars, biggest first, each in its platform colour."""
+    """Barras horizontales, de mayor a menor, cada una del color de su plataforma."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -578,7 +579,7 @@ def a_inversion(prs, spec, meta, tema):
 
 
 def a_kpis(prs, spec, meta, tema):
-    """3 or 4 hero figures, small label BELOW, delta vs benchmark. Nothing else."""
+    """3 o 4 cifras héroe, etiqueta pequeña DEBAJO, delta vs benchmark. Nada más."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -599,7 +600,7 @@ def a_kpis(prs, spec, meta, tema):
     for i, m in enumerate(metricas):
         x = MARGEN + (ancho + hueco) * i
         yy = y + 60
-        # The NUMBER is the protagonist; the label goes small, underneath.
+        # El NÚMERO es el protagonista; la etiqueta va pequeña, debajo.
         c.texto(x, yy, ancho, 200, formatea(m.get('valor'), m.get('formato', 'volumen')),
                 px=px_cifra, negrita=True, interlineado=0.95)
         c.texto(x, yy + 190, ancho, 50, m.get('label', ''),
@@ -613,7 +614,7 @@ def a_kpis(prs, spec, meta, tema):
 
 
 def a_barras(prs, spec, meta, tema):
-    """width = valor / max(serie). NEVER scaled by benchmark ratio."""
+    """ancho = valor / max(serie). NUNCA escalado por ratio contra benchmark."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -658,7 +659,7 @@ def a_barras(prs, spec, meta, tema):
 
 
 def a_tabla(prs, spec, meta, tema):
-    """Max 8 rows, max 6 columns, one datum per cell (section 5)."""
+    """Máx. 8 filas, máx. 6 columnas, un dato por celda (apartado 5)."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -719,7 +720,7 @@ def a_tabla(prs, spec, meta, tema):
 
 
 def a_funnel(prs, spec, meta, tema):
-    """Alcance -> Clics -> Oyentes convertidos -> Saves, with the rate between."""
+    """Alcance -> Clics -> Oyentes convertidos -> Saves, con la tasa entre etapas."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -743,7 +744,7 @@ def a_funnel(prs, spec, meta, tema):
                 px=TIPO['heroe'] * 0.62, negrita=True, interlineado=0.95)
         c.texto(x, yy + 170, ancho, 46, e.get('label', ''),
                 px=TIPO['kicker'], color='dim', mayusculas=True, negrita=True)
-        # conversion rate between this stage and the previous one
+        # tasa de conversión entre esta etapa y la anterior
         if i > 0:
             prev = etapas[i - 1].get('valor')
             v = e.get('valor')
@@ -757,7 +758,7 @@ def a_funnel(prs, spec, meta, tema):
 
 
 def a_anomalias(prs, spec, meta, tema):
-    """Max 3 items, one line each, each preceded by a colour square."""
+    """Máx. 3 ítems, una línea cada uno, precedidos de un cuadrado de color."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)
@@ -773,7 +774,7 @@ def a_anomalias(prs, spec, meta, tema):
 
 
 def a_cierre(prs, spec, meta, tema):
-    """What worked (one line) + hand-off to the digital ads team. Small, airy."""
+    """Qué funcionó (una línea) + derivación al equipo de digital ads. Pequeño, con aire."""
     s = prs.slides.add_slide(prs.slide_layouts[6])
     fondo(s, tema)
     c = Lienzo(s, tema)

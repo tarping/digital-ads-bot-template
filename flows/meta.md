@@ -1,7 +1,7 @@
 # Meta Ads · Select
 
 Acción `Select_Meta` del flujo de Power Automate. Lista destino: `meta_ads_data`.
-Resto del flujo: el patrón de [`README.md`](../README.md#4-build-the-power-automate-flows) (Get items → Delete
+Resto del flujo: el patrón de [`README.md`](../README.md#4-monta-los-flujos-de-power-automate) (Get items → Delete
 item → Create item).
 
 Map tal como está en el flujo:

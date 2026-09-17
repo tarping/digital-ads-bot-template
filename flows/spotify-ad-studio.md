@@ -2,7 +2,7 @@
 
 Acción Select del flujo de Power Automate. Lista destino:
 `SpotifyAdStudio_ads_data`. Resto del flujo: el patrón de
-[`README.md`](../README.md#4-build-the-power-automate-flows) (Get items → Delete item → Create item).
+[`README.md`](../README.md#4-monta-los-flujos-de-power-automate) (Get items → Delete item → Create item).
 
 - **Map del Select:** [`tools/adstudio-select-map.json`](../tools/adstudio-select-map.json)
 - **Body del Create item:** [`tools/adstudio-create-item.json`](../tools/adstudio-create-item.json)

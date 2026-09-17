@@ -1,7 +1,7 @@
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('Copilot Export')
-    .addItem('Generate Marquee/Showcase CSV', 'generateMarqueeShowcaseCSV')
+    .createMenu('Exportar para Copilot')
+    .addItem('Generar CSV de Marquee/Showcase', 'generateMarqueeShowcaseCSV')
     .addToUi();
 }
 
@@ -23,7 +23,7 @@ function generateMarqueeShowcaseCSV() {
   const sheet = ss.getSheetByName(SHEET_NAME);
 
   if (!sheet) {
-    SpreadsheetApp.getUi().alert('Sheet not found: ' + SHEET_NAME);
+    SpreadsheetApp.getUi().alert('No encuentro la pestaña: ' + SHEET_NAME);
     return;
   }
 
@@ -33,7 +33,7 @@ function generateMarqueeShowcaseCSV() {
   const timeZone = ss.getSpreadsheetTimeZone();
 
   if (rawData.length < 2) {
-    SpreadsheetApp.getUi().alert('No data found in sheet: ' + SHEET_NAME);
+    SpreadsheetApp.getUi().alert('La pestaña no tiene datos: ' + SHEET_NAME);
     return;
   }
 
@@ -325,35 +325,35 @@ function generateMarqueeShowcaseCSV() {
     rows.push(obj);
   }
 
-  // 1. Build the CSV String
+  // 1. Construye el CSV
   const csv = buildCSV(rows, outputFields);
 
-  // 2. Encode the string to Base64 (safely handling accents and special characters)
+  // 2. Codifica en Base64 (conserva acentos y caracteres especiales)
   const base64Csv = Utilities.base64Encode(csv, Utilities.Charset.UTF_8);
 
   const avisoSinMes = sinMes > 0
     ? '<p style="color:#b45309;"><strong>' + sinMes + ' fila(s) sin mes:</strong> revisa la columna Inicio.</p>'
     : '';
 
-  // 3. Create an HTML dialog that triggers the local download automatically
+  // 3. Diálogo HTML que lanza la descarga local automáticamente
   const htmlOutput = HtmlService.createHtmlOutput(`
     <div style="font-family:Arial,sans-serif;padding:16px;text-align:center;">
-      <h2>Generating Download...</h2>
-      <p>Your CSV file is downloading directly to your computer.</p>
-      <p><strong>Rows exported:</strong> ${rows.length}</p>
-      <p><strong>File name:</strong> ${FILE_NAME}</p>
+      <h2>Generando descarga...</h2>
+      <p>El CSV se está descargando en tu ordenador.</p>
+      <p><strong>Filas exportadas:</strong> ${rows.length}</p>
+      <p><strong>Nombre del archivo:</strong> ${FILE_NAME}</p>
       ${avisoSinMes}
       <br>
-      <button onclick="google.script.host.close()" style="padding: 8px 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">Close Window</button>
+      <button onclick="google.script.host.close()" style="padding: 8px 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">Cerrar</button>
     </div>
 
     <script>
-      // Trigger the download automatically when the modal loads
+      // Lanza la descarga en cuanto carga el diálogo
       window.onload = function() {
         const base64Data = "${base64Csv}";
         const fileName = "${FILE_NAME}";
 
-        // Use the Fetch API to convert base64 to a downloadable blob object
+        // Fetch convierte el base64 en un blob descargable
         fetch('data:text/csv;base64,' + base64Data)
           .then(res => res.blob())
           .then(blob => {
@@ -363,14 +363,14 @@ function generateMarqueeShowcaseCSV() {
             a.href = url;
             a.download = fileName;
             document.body.appendChild(a);
-            a.click(); // Programmatically click the hidden link
-            window.URL.revokeObjectURL(url); // Clean up memory
+            a.click(); // clic en el enlace oculto
+            window.URL.revokeObjectURL(url); // libera memoria
           });
       };
     </script>
   `).setWidth(450).setHeight(280);
 
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Local CSV Export Complete');
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Exportación de CSV completada');
 }
 
 /**
